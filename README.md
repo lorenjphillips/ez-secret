@@ -37,6 +37,8 @@ ez-secret --label "API token" --file ~/.api-token
 ez-secret --label "API token" --keychain-service my-app --keychain-account default
 ```
 
+Timeout defaults to 120 seconds (minimum 15). Set `EZ_SECRET_TIMEOUT` to change the default; `--timeout` overrides it. Both require an integer ≥ 15, otherwise exit 2.
+
 Full flag list: `ez-secret --help`. Try it with a fake password: `scripts/demo.sh`.
 
 ## Output

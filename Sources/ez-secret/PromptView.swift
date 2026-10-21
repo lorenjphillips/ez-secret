@@ -26,7 +26,7 @@ final class PromptModel: ObservableObject {
         rules = options.rules
         self.requester = requester
         timeoutSeconds = options.timeoutSeconds
-        secondsLeft = options.timeoutSeconds > 0 ? options.timeoutSeconds : nil
+        secondsLeft = options.timeoutSeconds
     }
 
     func pasteFromClipboard() {

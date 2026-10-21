@@ -27,12 +27,6 @@ case .run(let o):
 }
 
 switch options.mode {
-case .dryRun:
-    var line = "dry-run: would store to \(options.destination.stdoutDescription)"
-    if let hint = options.rules.hint { line += " (\(hint.lowercased()))" }
-    print(line)
-    exit(ExitCode.stored)
-
 case .stdin:
     let data = FileHandle.standardInput.readDataToEndOfFile()
     guard let raw = String(data: data, encoding: .utf8) else {

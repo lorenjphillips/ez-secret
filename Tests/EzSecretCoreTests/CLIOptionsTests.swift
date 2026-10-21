@@ -3,13 +3,12 @@ import XCTest
 
 final class CLIOptionsTests: XCTestCase {
     func testEnvFileDestinationResolvesAbsolutePath() throws {
-        guard case .run(let o) = try CLIOptions.parse(["--label", "L", "--env-file", "~/x/.env", "--key", "K"]) else {
+        guard case .run(let o) = try CLIOptions.parse(["--label", "L", "--env-file", "~/x/.env", "--key", "K"], environment: [:]) else {
             return XCTFail()
         }
         let home = NSHomeDirectory()
         XCTAssertEqual(o.destination, .envFile(path: "\(home)/x/.env", key: "K"))
-        XCTAssertEqual(o.timeoutSeconds, 300)
-        XCTAssertTrue(o.clearClipboard)
+        XCTAssertEqual(o.timeoutSeconds, 120)
         XCTAssertFalse(o.forceGUI)
         XCTAssertEqual(o.mode, .gui)
         XCTAssertEqual(o.destination.userDescription, "Will be saved to ~/x/.env → K")
@@ -17,16 +16,35 @@ final class CLIOptionsTests: XCTestCase {
 
     func testAllFlags() throws {
         let args = ["--label", "Demo", "--keychain-service", "svc", "--keychain-account", "acct",
-                    "--validate-prefix", "cfp_", "--min-length", "40", "--timeout", "0",
-                    "--no-clear-clipboard", "--no-digest", "--force-gui", "--stdin"]
+                    "--validate-prefix", "cfp_", "--min-length", "40", "--timeout", "15",
+                    "--no-digest", "--force-gui", "--stdin"]
         guard case .run(let o) = try CLIOptions.parse(args) else { return XCTFail() }
         XCTAssertTrue(o.forceGUI)
         XCTAssertEqual(o.destination, .keychain(service: "svc", account: "acct"))
         XCTAssertEqual(o.rules, ValidationRules(requiredPrefix: "cfp_", minLength: 40))
-        XCTAssertEqual(o.timeoutSeconds, 0)
-        XCTAssertFalse(o.clearClipboard)
+        XCTAssertEqual(o.timeoutSeconds, 15)
         XCTAssertFalse(o.digest)
         XCTAssertEqual(o.mode, .stdin)
+    }
+
+    func testTimeoutEnvironmentAndOverride() throws {
+        let args = ["--label", "L", "--file", "a"]
+        guard case .run(let o) = try CLIOptions.parse(args, environment: ["EZ_SECRET_TIMEOUT": "60"]) else { return XCTFail() }
+        XCTAssertEqual(o.timeoutSeconds, 60)
+        guard case .run(let overridden) = try CLIOptions.parse(args + ["--timeout", "15"], environment: ["EZ_SECRET_TIMEOUT": "invalid"]) else { return XCTFail() }
+        XCTAssertEqual(overridden.timeoutSeconds, 15)
+    }
+
+    func testRejectsInvalidTimeouts() {
+        let args = ["--label", "L", "--file", "a"]
+        for raw in ["0", "14", "-1", "invalid", "1.5", ""] {
+            XCTAssertThrowsError(try CLIOptions.parse(args + ["--timeout", raw], environment: [:])) { error in
+                XCTAssertTrue(error.localizedDescription.contains("--timeout must be an integer >= 15"))
+            }
+            XCTAssertThrowsError(try CLIOptions.parse(args, environment: ["EZ_SECRET_TIMEOUT": raw])) { error in
+                XCTAssertTrue(error.localizedDescription.contains("EZ_SECRET_TIMEOUT must be an integer >= 15"))
+            }
+        }
     }
 
     func testRejectsMultipleOrMissingDestinations() {

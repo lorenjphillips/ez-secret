@@ -16,10 +16,12 @@ For a project that loads a gitignored `.env`:
 
 ```sh
 ez-secret --label "OpenAI API key for local eval runs" \
-  --env-file ./.env --key OPENAI_API_KEY --validate-prefix sk- --timeout 540
+  --env-file ./.env --key OPENAI_API_KEY --validate-prefix sk- --timeout 120
 ```
 
 The command blocks until the user answers; keep the shell tool's timeout longer
-than `--timeout` and wait for completion (0 requires an indefinite wait).
+than `--timeout` and wait for completion.
+Timeout defaults to 120 seconds (minimum 15); `EZ_SECRET_TIMEOUT` changes the
+default and `--timeout` overrides it. Both require an integer ≥ 15, otherwise exit 2.
 After storage, reference the destination; never read the value back into agent
 context with `cat`, `echo`, `printenv`, `security -w`, or other value-displaying commands.

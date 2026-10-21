@@ -149,19 +149,10 @@ final class PromptController: NSObject, NSApplicationDelegate, NSWindowDelegate 
         guard !finished else { return }
         do {
             let result = try SecretStore.store(secret, to: options.destination, label: options.label, digest: options.digest)
-            if options.clearClipboard { clearClipboardIfItHolds(secret) }
             finish(stdout: result.stdoutLine, code: ExitCode.stored)
         } catch {
             FileHandle.standardError.write(Data("error: \(error.localizedDescription)\n".utf8))
             finish(stdout: nil, code: ExitCode.storeFailed)
-        }
-    }
-
-    private func clearClipboardIfItHolds(_ secret: String) {
-        let pb = NSPasteboard.general
-        guard let current = pb.string(forType: .string) else { return }
-        if current == secret || stripTrailingNewline(current) == secret {
-            pb.clearContents()
         }
     }
 

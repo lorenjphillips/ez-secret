@@ -13,7 +13,6 @@ public enum ExitCode {
 public enum Mode: Equatable {
     case gui
     case stdin
-    case dryRun
 }
 
 public struct CLIOptions: Equatable {
@@ -23,7 +22,6 @@ public struct CLIOptions: Equatable {
     public var destination: Destination
     public var rules: ValidationRules
     public var timeoutSeconds: Int
-    public var clearClipboard: Bool
     public var digest: Bool
     public var forceGUI: Bool
     public var mode: Mode
@@ -57,13 +55,13 @@ public struct CLIOptions: Equatable {
       --label <text>          what the user is asked for (required)
       --validate-prefix <s>   reject values that do not start with <s>
       --min-length <n>        reject values shorter than <n> characters
-      --timeout <seconds>     give up after this long (default 300; 0 = never)
-      --no-clear-clipboard    leave the clipboard alone after saving
+      --timeout <seconds>     give up after this long (default 120; minimum 15)
+                              EZ_SECRET_TIMEOUT changes the default; --timeout overrides it
+                              both require an integer >= 15 (otherwise exit 2)
       --no-digest             omit the sha256-prefix from stdout
       --force-gui             show the panel even inside an ssh session (you are at
                               this Mac's console); otherwise ssh sessions exit 5
       --stdin                 no UI: read the secret from stdin (tests / scripts)
-      --dry-run               no UI, no write: print the resolved destination
       -h, --help              show this help
       --version               print the version
 
@@ -78,12 +76,12 @@ public struct CLIOptions: Equatable {
 
     FOR AGENTS
       Never ask for secrets in chat.
-      The command blocks until the user answers; the shell tool's timeout must exceed --timeout (0 requires an indefinite wait).
+      The command blocks until the user answers; the shell tool's timeout must exceed --timeout.
       After exit 0, reference the destination; never read the value back (no cat/echo/printenv/security -w).
       Exit 1/4: ask the user before re-prompting. Exit 5: ask the user to run the same command in a desktop terminal.
     """
 
-    public static func parse(_ args: [String]) throws -> Parsed {
+    public static func parse(_ args: [String], environment: [String: String] = ProcessInfo.processInfo.environment) throws -> Parsed {
         var label: String?
         var envFile: String?
         var key: String?
@@ -92,8 +90,7 @@ public struct CLIOptions: Equatable {
         var account: String?
         var prefix: String?
         var minLength: Int?
-        var timeout = 300
-        var clearClipboard = true
+        var timeout: Int?
         var digest = true
         var forceGUI = false
         var mode = Mode.gui
@@ -110,6 +107,13 @@ public struct CLIOptions: Equatable {
             return n
         }
 
+        func timeoutValue(_ raw: String, source: String) throws -> Int {
+            guard let n = Int(raw), n >= 15 else {
+                throw UsageError(message: "\(source) must be an integer >= 15 seconds, got '\(raw)'")
+            }
+            return n
+        }
+
         while i < args.count {
             let a = args[i]
             switch a {
@@ -123,17 +127,18 @@ public struct CLIOptions: Equatable {
             case "--keychain-account": account = try value(for: a)
             case "--validate-prefix": prefix = try value(for: a)
             case "--min-length": minLength = try intValue(for: a)
-            case "--timeout": timeout = try intValue(for: a)
-            case "--no-clear-clipboard": clearClipboard = false
-            case "--clear-clipboard": clearClipboard = true
+            case "--timeout": timeout = try timeoutValue(value(for: a), source: a)
             case "--no-digest": digest = false
             case "--force-gui": forceGUI = true
             case "--stdin": mode = .stdin
-            case "--dry-run": mode = .dryRun
             default:
                 throw UsageError(message: "unknown argument '\(a)' (see --help)")
             }
             i += 1
+        }
+
+        if timeout == nil, let raw = environment["EZ_SECRET_TIMEOUT"] {
+            timeout = try timeoutValue(raw, source: "EZ_SECRET_TIMEOUT")
         }
 
         guard let label, !label.trimmingCharacters(in: .whitespaces).isEmpty else {
@@ -172,8 +177,7 @@ public struct CLIOptions: Equatable {
             label: label,
             destination: destinations[0],
             rules: ValidationRules(requiredPrefix: prefix, minLength: minLength),
-            timeoutSeconds: timeout,
-            clearClipboard: clearClipboard,
+            timeoutSeconds: timeout ?? 120,
             digest: digest,
             forceGUI: forceGUI,
             mode: mode
