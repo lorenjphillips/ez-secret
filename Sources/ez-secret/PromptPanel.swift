@@ -83,7 +83,7 @@ final class PromptController: NSObject, NSApplicationDelegate, NSWindowDelegate 
             backing: .buffered,
             defer: false
         )
-        panel.backgroundColor = NSColor(Theme.clear)
+        panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = true
         panel.isFloatingPanel = true

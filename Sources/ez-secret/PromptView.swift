@@ -58,45 +58,41 @@ final class PromptModel: ObservableObject {
 
 struct PromptView: View {
     @ObservedObject var model: PromptModel
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shake: CGFloat = 0
-
-    private var theme: Theme { Theme(scheme: colorScheme) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.Space.none) {
             Text(model.label)
                 .font(Theme.TypeStyle.title)
-                .tracking(Theme.Size.titleTracking)
-                .foregroundStyle(theme.textPrimary)
+                .foregroundStyle(Theme.textPrimary)
+                .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            destinationLine.padding(.top, Theme.Space.xs)
-            VStack(alignment: .leading, spacing: Theme.Space.xs) {
+                .help(model.label)
+            destinationLine.padding(.top, Theme.Space.xxs)
+            VStack(alignment: .leading, spacing: Theme.Space.xxs) {
                 secretField
                 if let error = model.errorMessage {
-                    Label(error, systemImage: "exclamationmark.circle.fill")
+                    Text(error)
                         .font(Theme.TypeStyle.caption)
-                        .foregroundStyle(theme.danger)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .foregroundStyle(Theme.danger)
+                        .lineLimit(1)
+                        .help(error)
                         .accessibilityLabel("Error: \(error)")
                 }
             }
-            .padding(.top, Theme.Space.xl)
+            .padding(.top, Theme.Space.md)
             .modifier(FieldShake(amount: shake))
             .zIndex(1)
-            buttons.padding(.top, Theme.Space.lg)
-            if let seconds = model.secondsLeft {
-                countdown(seconds).padding(.top, Theme.Space.md)
-            }
+            buttons.padding(.top, Theme.Space.md)
         }
-        .padding(Theme.Space.xl)
+        .padding(Theme.Space.lg)
         .frame(width: Theme.Size.panel)
-        .background(theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.panel))
+        .background(Theme.surface, in: RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Theme.Radius.panel)
-                .strokeBorder(theme.border, lineWidth: Theme.Size.hairline)
+            RoundedRectangle(cornerRadius: Theme.Radius.panel, style: .continuous)
+                .strokeBorder(Theme.border, lineWidth: Theme.Size.hairline)
                 .allowsHitTesting(false)
         }
         .onChange(of: model.errorPulse) { _, _ in
@@ -106,125 +102,124 @@ struct PromptView: View {
     }
 
     private var destinationLine: some View {
-        HStack(spacing: Theme.Space.xxs) {
+        HStack(spacing: Theme.Space.none) {
             if let requester = model.requester, !requester.isEmpty {
-                Text("\(requester) →")
+                Text(requester)
                     .lineLimit(1)
-                    .frame(maxWidth: Theme.Size.requester, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .truncationMode(.tail)
+                Text(" · ")
+                    .layoutPriority(2)
             }
             Text(destinationText(abbreviated: true))
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .layoutPriority(1)
         }
-        .font(Theme.TypeStyle.mono)
-        .foregroundStyle(theme.textSecondary)
-        .accessibilityHint(destinationText(abbreviated: false))
-        .accessibilityElement(children: .combine)
+        .font(Theme.TypeStyle.caption)
+        .foregroundStyle(Theme.textSecondary)
+        .panelTooltip(contextText(abbreviated: false), alignment: .leading, wraps: true)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(contextText(abbreviated: false))
     }
 
     private func destinationText(abbreviated: Bool) -> String {
         func path(_ value: String) -> String { abbreviated ? Destination.abbreviate(value) : value }
         switch model.destination {
-        case .envFile(let value, let key): return "\(path(value)) · \(key)"
+        case .envFile(let value, let key): return "\(path(value)) → \(key)"
         case .file(let value): return path(value)
-        case .keychain(let service, let account): return "Keychain · \(service)/\(account)"
+        case .keychain(let service, let account): return "Keychain → \(service)/\(account)"
         }
+    }
+
+    private func contextText(abbreviated: Bool) -> String {
+        let destination = destinationText(abbreviated: abbreviated)
+        guard let requester = model.requester, !requester.isEmpty else { return destination }
+        return "\(requester) · \(destination)"
     }
 
     private var placeholder: String {
         var parts: [String] = []
-        if let prefix = model.rules.requiredPrefix { parts.append("\(prefix)…") }
-        if let length = model.rules.minLength { parts.append("\(length)+ chars") }
-        return parts.isEmpty ? "Enter secret" : parts.joined(separator: "  ·  ")
+        if let prefix = model.rules.requiredPrefix { parts.append("Starts with \(prefix)") }
+        if let length = model.rules.minLength { parts.append("\(length)+ characters") }
+        return parts.isEmpty ? "Paste or type" : parts.joined(separator: ", ")
     }
 
     private var secretField: some View {
-        HStack(spacing: Theme.Space.xxs) {
-            SecretInput(model: model, placeholder: placeholder, ink: theme.textPrimary, quiet: theme.textTertiary, accent: theme.accent)
-                .frame(height: Theme.Size.input)
-                .padding(.leading, Theme.Space.md)
+        HStack(spacing: Theme.Space.none) {
+            SecretInput(model: model, placeholder: placeholder)
+                .frame(height: Theme.Size.nativeInput)
+                .padding(.leading, Theme.Space.xs)
+                .padding(.trailing, Theme.Space.xxs)
             Button {
                 model.revealed.toggle()
                 model.focusRequest += 1
             } label: {
                 Image(systemName: model.revealed ? "eye.slash" : "eye")
-                    .font(Theme.TypeStyle.icon)
-                    .frame(width: Theme.Size.icon)
             }
             .buttonStyle(PanelButtonStyle(kind: .icon))
             .accessibilityLabel(model.revealed ? "Hide secret" : "Show secret")
-            .panelTooltip(model.revealed ? "Hide" : "Show")
+            .panelTooltip(model.revealed ? "Hide secret" : "Show secret")
             Button { model.pasteFromClipboard() } label: {
-                HStack(spacing: Theme.Space.xxs) {
-                    Image(systemName: "clipboard")
-                    Text("Paste")
-                }
+                Image(systemName: "doc.on.clipboard")
             }
-            .buttonStyle(PanelButtonStyle(kind: .chip))
+            .buttonStyle(PanelButtonStyle(kind: .icon))
+            .accessibilityLabel("Paste from clipboard")
             .panelTooltip("Paste from clipboard")
         }
-        .padding(.trailing, Theme.Space.sm)
+        .padding(.trailing, Theme.Space.xxs)
         .frame(height: Theme.Size.field)
         .background {
-            RoundedRectangle(cornerRadius: Theme.Radius.field)
-                .fill(theme.field)
+            RoundedRectangle(cornerRadius: Theme.Radius.field, style: .continuous)
+                .fill(Theme.field)
                 .overlay {
-                    RoundedRectangle(cornerRadius: Theme.Radius.field)
-                        .strokeBorder(model.errorMessage != nil ? theme.danger : model.fieldFocused ? theme.accent : theme.border, lineWidth: Theme.Size.line)
+                    RoundedRectangle(cornerRadius: Theme.Radius.field, style: .continuous)
+                        .strokeBorder(Theme.border, lineWidth: Theme.Size.hairline)
                 }
         }
         .background {
-            RoundedRectangle(cornerRadius: Theme.Radius.field + Theme.Size.halo)
-                .fill(model.errorMessage != nil ? theme.errorHalo : model.fieldFocused ? theme.focus : Theme.clear)
+            RoundedRectangle(cornerRadius: Theme.Radius.field + Theme.Size.halo, style: .continuous)
+                .strokeBorder(model.fieldFocused ? Theme.accent.opacity(0.28) : Theme.clear, lineWidth: Theme.Size.halo)
                 .padding(-Theme.Size.halo)
+                .blur(radius: Theme.Size.focusSoftness)
         }
         .animation(.easeOut(duration: Theme.Motion.hover), value: model.fieldFocused)
     }
 
     private var buttons: some View {
-        HStack(spacing: Theme.Space.sm) {
-            Spacer(minLength: Theme.Space.none)
-            Button(action: model.onCancel) { buttonLabel("Cancel", key: "esc") }
+        HStack(spacing: Theme.Space.xs) {
+            if let seconds = model.secondsLeft { countdown(seconds) }
+            Spacer(minLength: Theme.Space.xs)
+            Button("Cancel", action: model.onCancel)
                 .buttonStyle(PanelButtonStyle(kind: .secondary))
-            Button { model.save() } label: { buttonLabel("Save", key: "↩", primary: true) }
+                .panelTooltip("Cancel (Esc)")
+            Button("Save") { model.save() }
                 .buttonStyle(PanelButtonStyle(kind: .primary))
                 .disabled(model.secret.isEmpty)
+                .panelTooltip("Save (Return)")
         }
-    }
-
-    private func buttonLabel(_ title: String, key: String, primary: Bool = false) -> some View {
-        HStack(spacing: Theme.Space.sm) {
-            Text(title).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
-            Text(key)
-                .font(key == "esc" ? Theme.TypeStyle.key : Theme.TypeStyle.returnKey)
-                .frame(width: Theme.Size.keyWidth, height: Theme.Size.keyHeight)
-                .background(primary && !model.secret.isEmpty ? theme.primaryKeycap : theme.hover, in: RoundedRectangle(cornerRadius: Theme.Radius.small))
-                .accessibilityHidden(true)
-        }
-        .frame(width: Theme.Size.actionWidth - Theme.Space.sm * 2)
     }
 
     private func countdown(_ seconds: Int) -> some View {
-        let tint = seconds < 15 ? theme.danger : seconds < 60 ? theme.warning : theme.accent
-        return HStack(spacing: Theme.Space.sm) {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(theme.border)
-                    Capsule().fill(tint)
-                        .frame(width: geometry.size.width * min(1, max(0, CGFloat(seconds) / CGFloat(max(1, model.timeoutSeconds)))))
-                        .animation(reduceMotion ? nil : .linear(duration: Theme.Motion.tick), value: seconds)
-                }
+        let tint = seconds < 10 ? Theme.danger : seconds < 30 ? Theme.warning : Theme.textSecondary
+        return HStack(spacing: Theme.Space.xxs) {
+            ZStack {
+                Circle().stroke(Theme.fill, lineWidth: Theme.Size.track)
+                Circle()
+                    .trim(from: 0, to: min(1, max(0, CGFloat(seconds) / CGFloat(max(1, model.timeoutSeconds)))))
+                    .stroke(tint, style: StrokeStyle(lineWidth: Theme.Size.track, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(reduceMotion ? nil : .linear(duration: Theme.Motion.tick), value: seconds)
             }
-            .frame(height: Theme.Size.track)
+            .frame(width: Theme.Size.ring, height: Theme.Size.ring)
             Text(String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60))
-                .font(Theme.TypeStyle.mono)
-                .foregroundStyle(seconds < 60 ? tint : theme.textTertiary)
-                .frame(minWidth: Theme.Size.timer, alignment: .trailing)
+                .font(Theme.TypeStyle.caption)
+                .monospacedDigit()
+                .frame(minWidth: Theme.Size.timer, alignment: .leading)
         }
+        .foregroundStyle(tint)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Time remaining")
-        .accessibilityValue("\(seconds) seconds")
+        .accessibilityValue("\(max(0, seconds)) seconds")
     }
 }
 
@@ -242,14 +237,13 @@ private struct FieldShake: GeometryEffect {
 private struct SecretInput: NSViewRepresentable {
     @ObservedObject var model: PromptModel
     let placeholder: String
-    let ink: Color
-    let quiet: Color
-    let accent: Color
 
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
 
     func makeNSView(context: Context) -> InputContainer {
         let container = InputContainer()
+        container.wantsLayer = true
+        container.layer?.masksToBounds = true
         container.onAttach = { [weak container] in container?.focusAtEnd() }
         container.onFocus = { [weak model] in model?.fieldFocused = true }
         return container
@@ -275,8 +269,8 @@ private struct SecretInput: NSViewRepresentable {
             field.setAccessibilityLabel(model.label)
             container.addSubview(field)
             NSLayoutConstraint.activate([
-                field.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-                field.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                field.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: Theme.Size.textInset),
+                field.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -Theme.Size.textInset),
                 field.centerYAnchor.constraint(equalTo: container.centerYAnchor),
                 field.heightAnchor.constraint(equalToConstant: Theme.Size.nativeInput)
             ])
@@ -285,12 +279,12 @@ private struct SecretInput: NSViewRepresentable {
         }
         guard let field = container.field else { return }
         if field.stringValue != model.secret { field.stringValue = model.secret }
-        field.textColor = NSColor(ink)
+        field.textColor = .labelColor
         field.placeholderAttributedString = NSAttributedString(string: placeholder, attributes: [
-            .foregroundColor: NSColor(quiet),
-            .font: Theme.TypeStyle.placeholder
+            .foregroundColor: NSColor.secondaryLabelColor,
+            .font: Theme.TypeStyle.input
         ])
-        if let editor = field.currentEditor() as? NSTextView { editor.insertionPointColor = NSColor(accent) }
+        if let editor = field.currentEditor() as? NSTextView { editor.insertionPointColor = .controlAccentColor }
         if replace || coordinator.focusRequest != model.focusRequest {
             coordinator.focusRequest = model.focusRequest
             DispatchQueue.main.async { [weak container] in container?.focusAtEnd() }
