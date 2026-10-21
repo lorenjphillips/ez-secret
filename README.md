@@ -27,12 +27,6 @@ brew install lorenjphillips/tap/ez-secret && npx skills add lorenjphillips/ez-se
 ez-secret --label "OpenAI API key" --env-file .env --key OPENAI_API_KEY --no-digest
 ```
 
-## Install
-
-The command at the top installs the tool, then the agent skill (other agents: `npx skills add lorenjphillips/ez-secret`; or paste [snippets/AGENTS.md](snippets/AGENTS.md) into AGENTS.md / CLAUDE.md). macOS 14+.
-
-From source: `swift build -c release`.
-
 ## Usage
 
 ```sh
@@ -43,7 +37,5 @@ ez-secret --label "API token" --keychain-service my-app --keychain-account defau
 
 Run `ez-secret --help` for all flags and exit codes.
 `--timeout` defaults to 120 s (minimum 15); `EZ_SECRET_TIMEOUT` changes the default, and `--timeout` overrides it.
-
-The value never passes through the agent, but a `.env` or file is still readable by anything running as you, including the agent’s shell; the Keychain is the safest destination for high-value secrets.
 
 License: [MIT](LICENSE).
