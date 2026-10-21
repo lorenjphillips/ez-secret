@@ -19,6 +19,7 @@ public struct CLIOptions: Equatable {
     public static let version = "0.1.0"
 
     public var label: String
+    public var requester: String?
     public var destination: Destination
     public var rules: ValidationRules
     public var timeoutSeconds: Int
@@ -53,6 +54,7 @@ public struct CLIOptions: Equatable {
 
     OPTIONS
       --label <text>          what the user is asked for (required)
+      --requester <text>      requester name when no agent is detected
       --validate-prefix <s>   reject values that do not start with <s>
       --min-length <n>        reject values shorter than <n> characters
       --timeout <seconds>     give up after this long (default 120; minimum 15)
@@ -83,6 +85,7 @@ public struct CLIOptions: Equatable {
 
     public static func parse(_ args: [String], environment: [String: String] = ProcessInfo.processInfo.environment) throws -> Parsed {
         var label: String?
+        var requester: String?
         var envFile: String?
         var key: String?
         var file: String?
@@ -120,6 +123,7 @@ public struct CLIOptions: Equatable {
             case "-h", "--help": return .help
             case "--version": return .version
             case "--label": label = try value(for: a)
+            case "--requester": requester = try value(for: a)
             case "--env-file": envFile = try value(for: a)
             case "--key": key = try value(for: a)
             case "--file": file = try value(for: a)
@@ -175,6 +179,7 @@ public struct CLIOptions: Equatable {
 
         return .run(CLIOptions(
             label: label,
+            requester: requester,
             destination: destinations[0],
             rules: ValidationRules(requiredPrefix: prefix, minLength: minLength),
             timeoutSeconds: timeout ?? 120,

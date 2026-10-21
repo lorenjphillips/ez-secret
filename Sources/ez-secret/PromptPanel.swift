@@ -48,7 +48,7 @@ final class PromptController: NSObject, NSApplicationDelegate, NSWindowDelegate 
 
     init(options: CLIOptions) {
         self.options = options
-        self.model = PromptModel(options: options, requester: Session.requesterName())
+        self.model = PromptModel(options: options, requester: Session.requesterName(requester: options.requester))
         super.init()
         model.onSave = { [weak self] secret in self?.save(secret) }
         model.onCancel = { [weak self] in self?.finish(stdout: "cancelled", code: ExitCode.cancelled) }

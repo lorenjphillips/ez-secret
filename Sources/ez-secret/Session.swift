@@ -1,5 +1,6 @@
 import CoreGraphics
 import Darwin
+import EzSecretCore
 import Foundation
 
 enum Session {
@@ -29,20 +30,54 @@ enum Session {
         return .available
     }
 
-    static func requesterName() -> String? {
+    static func requesterName(requester: String? = nil) -> String? {
+        let env = ProcessInfo.processInfo.environment
         let shells: Set<String> = ["sh", "bash", "zsh", "fish", "dash", "login", "script", "env", "caffeinate", "tmux", "xcrun"]
         var pid = getppid()
-        var depth = 0
+        var visited: Set<pid_t> = []
         var fallback: String?
-        while pid > 1, depth < 8 {
-            guard let name = processName(pid) else { break }
-            if fallback == nil { fallback = name }
-            if !shells.contains(name) { return name }
+        var firstName: String?
+        var kind: String?
+        while pid > 1, visited.insert(pid).inserted {
+            let argumentName = argumentZeroName(pid)
+            if argumentName == "claude" || argumentName == "codex" {
+                kind = argumentName == "claude" ? "Claude Code" : "Codex"
+                break
+            }
+            if let name = argumentName ?? processName(pid) {
+                if firstName == nil { firstName = name }
+                if fallback == nil, !shells.contains(name) { fallback = name }
+            }
             guard let next = parentPID(of: pid) else { break }
             pid = next
-            depth += 1
         }
-        return fallback
+        if kind == nil {
+            if env["CODEX_THREAD_ID"] != nil { kind = "Codex" }
+            else if env["CLAUDECODE"] == "1" { kind = "Claude Code" }
+        }
+        if let kind {
+            return Requester.display(kind: kind, name: sessionTitle(kind: kind, environment: env))
+        }
+        if requester != nil { return Requester.display(name: requester) }
+        return fallback ?? firstName
+    }
+
+    private static func sessionTitle(kind: String, environment env: [String: String]) -> String? {
+        if kind == "Codex" {
+            guard let id = env["CODEX_THREAD_ID"], !id.isEmpty else { return nil }
+            let home = env["CODEX_HOME"] ?? NSHomeDirectory() + "/.codex"
+            guard let data = try? Data(contentsOf: URL(fileURLWithPath: home).appendingPathComponent("session_index.jsonl")) else { return nil }
+            return Requester.codexTitle(from: data, threadID: id)
+        }
+        guard let id = env["CLAUDE_CODE_SESSION_ID"], !id.isEmpty else { return nil }
+        let home = env["CLAUDE_CONFIG_DIR"] ?? NSHomeDirectory() + "/.claude"
+        let projects = URL(fileURLWithPath: home).appendingPathComponent("projects")
+        guard let directories = try? FileManager.default.contentsOfDirectory(at: projects, includingPropertiesForKeys: nil) else { return nil }
+        for directory in directories {
+            let file = directory.appendingPathComponent(id + ".jsonl")
+            if let data = try? Data(contentsOf: file) { return Requester.claudeTitle(from: data) }
+        }
+        return nil
     }
 
     private static func processName(_ pid: pid_t) -> String? {
