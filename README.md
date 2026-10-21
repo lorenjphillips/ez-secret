@@ -21,7 +21,7 @@ brew install lorenjphillips/tap/ez-secret && npx skills add lorenjphillips/ez-se
 
 1. The agent runs one command saying where the secret goes.
 2. You type or paste it into a native macOS popup.
-3. The value goes straight to a `.env` key, a file or the Keychain (file writes are atomic, mode `0600`); the agent only gets metadata like `stored: env-file /path/.env key=OPENAI_API_KEY, length: 51`.
+3. The value goes straight to a `.env` key, a file or the Keychain.
 
 ```sh
 ez-secret --label "OpenAI API key" --env-file .env --key OPENAI_API_KEY --no-digest
@@ -36,6 +36,5 @@ ez-secret --label "API token" --keychain-service my-app --keychain-account defau
 ```
 
 Run `ez-secret --help` for all flags and exit codes.
-`--timeout` defaults to 120 s (minimum 15); `EZ_SECRET_TIMEOUT` changes the default, and `--timeout` overrides it.
 
 License: [MIT](LICENSE).
