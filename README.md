@@ -8,7 +8,7 @@
 </p>
 <p align="center"><picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/assets/panel-dark.png">
-    <img src=".github/assets/panel-light.png" alt="ez-secret macOS popup asking for an API key" width="440">
+    <img src=".github/assets/panel-light.png" alt="ez-secret macOS popup asking for an API key" width="380">
 </picture></p>
 
 Your agent runs one command. A native macOS popup asks you for the secret and saves it straight to a `.env` file, a file, or the Keychain. The agent only gets back metadata, never the value. Works with Claude Code, Codex, Cursor and any agent that can run a shell command.
