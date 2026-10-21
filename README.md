@@ -1,5 +1,10 @@
 <h1 align="center">ez-secret</h1>
 <p align="center">Let AI coding agents ask you for API keys and passwords without ever seeing them.</p>
+
+```sh
+brew install lorenjphillips/tap/ez-secret && npx skills add lorenjphillips/ez-secret -g -y -a claude-code -a codex
+```
+
 <p align="center"><img src="https://img.shields.io/badge/macOS-14%2B-555555?style=flat-square" alt="macOS 14+"> <img src="https://img.shields.io/badge/Swift-5.9%2B-F05138?style=flat-square" alt="Swift 5.9+"> <img src="https://img.shields.io/badge/license-MIT-426B8A?style=flat-square" alt="MIT license"> <img src="https://img.shields.io/badge/dependencies-zero-527A55?style=flat-square" alt="Zero dependencies"></p>
 <p align="center"><picture>
     <source media="(prefers-color-scheme: dark)" srcset=".github/assets/panel-dark.png">
@@ -24,11 +29,7 @@ ez-secret --label "OpenAI API key" --env-file .env --key OPENAI_API_KEY --no-dig
 
 ## Install
 
-```sh
-brew install lorenjphillips/tap/ez-secret && npx skills add lorenjphillips/ez-secret -g -y -a claude-code -a codex
-```
-
-The first part installs the tool, the second the agent skill (other agents: `npx skills add lorenjphillips/ez-secret`; or paste [snippets/AGENTS.md](snippets/AGENTS.md) into AGENTS.md / CLAUDE.md). macOS 14+.
+The command at the top installs the tool, then the agent skill (other agents: `npx skills add lorenjphillips/ez-secret`; or paste [snippets/AGENTS.md](snippets/AGENTS.md) into AGENTS.md / CLAUDE.md). macOS 14+.
 
 From source: `swift build -c release`.
 
