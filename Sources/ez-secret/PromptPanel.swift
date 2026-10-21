@@ -1,6 +1,7 @@
 import EzSecretCore
 import AppKit
 import SwiftUI
+import Combine
 
 final class SecretPanel: NSPanel {
     override var canBecomeKey: Bool { true }
@@ -10,6 +11,30 @@ final class SecretPanel: NSPanel {
         onCancel?()
     }
 
+    override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, handleShortcut(event) { return }
+        super.sendEvent(event)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if handleShortcut(event) { return }
+        super.keyDown(with: event)
+    }
+
+    func handleShortcut(_ event: NSEvent) -> Bool {
+        switch event.keyCode {
+        case 36, 76:
+            if !event.isARepeat { onSave?() }
+            return true
+        case 53:
+            if !event.isARepeat { onCancel?() }
+            return true
+        default:
+            return false
+        }
+    }
+
+    var onSave: (() -> Void)?
     var onCancel: (() -> Void)?
 }
 
@@ -18,6 +43,7 @@ final class PromptController: NSObject, NSApplicationDelegate, NSWindowDelegate 
     private let model: PromptModel
     private var panel: SecretPanel?
     private var countdown: Timer?
+    private var contentObservation: AnyCancellable?
     private var finished = false
 
     init(options: CLIOptions) {
@@ -52,23 +78,22 @@ final class PromptController: NSObject, NSApplicationDelegate, NSWindowDelegate 
 
     private func showPanel() {
         let panel = SecretPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 440, height: 300),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            contentRect: NSRect(x: 0, y: 0, width: Theme.Size.panel, height: Theme.Size.initialHeight),
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
-        panel.title = "Secret requested"
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
+        panel.backgroundColor = NSColor(Theme.clear)
+        panel.isOpaque = false
+        panel.hasShadow = true
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = false
         panel.isMovableByWindowBackground = true
         panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary, .transient]
         panel.isReleasedWhenClosed = false
-        panel.standardWindowButton(.miniaturizeButton)?.isHidden = true
-        panel.standardWindowButton(.zoomButton)?.isHidden = true
         panel.delegate = self
+        panel.onSave = { [weak self] in self?.model.save() }
         panel.onCancel = { [weak self] in self?.model.onCancel() }
 
         let hosting = NSHostingView(rootView: PromptView(model: model))
@@ -77,15 +102,30 @@ final class PromptController: NSObject, NSApplicationDelegate, NSWindowDelegate 
         panel.setContentSize(hosting.fittingSize)
         panel.center()
         self.panel = panel
+        contentObservation = model.$errorMessage.removeDuplicates().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.resizeToFit() }
+        }
 
         NSApp.activate(ignoringOtherApps: true)
         panel.makeKeyAndOrderFront(nil)
-        panel.makeFirstResponder(hosting)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
             guard let self, !self.finished else { return }
             NSApp.activate(ignoringOtherApps: true)
             self.panel?.makeKeyAndOrderFront(nil)
+            self.model.focusRequest += 1
         }
+    }
+
+    private func resizeToFit() {
+        guard let panel, let hosting = panel.contentView else { return }
+        hosting.layoutSubtreeIfNeeded()
+        let size = hosting.fittingSize
+        guard size.height != panel.frame.height else { return }
+        var frame = panel.frame
+        frame.origin.y += frame.height - size.height
+        frame.size = size
+        panel.setFrame(frame, display: true)
+        panel.invalidateShadow()
     }
 
     private func startCountdown() {
@@ -129,6 +169,7 @@ final class PromptController: NSObject, NSApplicationDelegate, NSWindowDelegate 
         guard !finished else { return }
         finished = true
         countdown?.invalidate()
+        contentObservation?.cancel()
         model.secret = ""
         panel?.orderOut(nil)
         if let line {
