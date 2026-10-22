@@ -16,7 +16,7 @@ public enum Mode: Equatable {
 }
 
 public struct CLIOptions: Equatable {
-    public static let version = "0.1.0"
+    public static let version = "0.1.1"
 
     public var label: String
     public var requester: String?
@@ -80,7 +80,7 @@ public struct CLIOptions: Equatable {
       Never ask for secrets in chat.
       The command blocks until the user answers; the shell tool's timeout must exceed --timeout.
       After exit 0, reference the destination; never read the value back (no cat/echo/printenv/security -w).
-      Exit 1/4: ask the user before re-prompting. Exit 5: ask the user to run the same command in a desktop terminal.
+      Exit 1/4: ask the user before re-prompting. Exit 5: inside an agent sandbox, rerun the same command with sandbox escalation (user approval); otherwise ask the user to run it in a desktop terminal.
     """
 
     public static func parse(_ args: [String], environment: [String: String] = ProcessInfo.processInfo.environment) throws -> Parsed {

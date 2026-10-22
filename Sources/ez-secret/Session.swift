@@ -7,6 +7,7 @@ enum Session {
     enum GUIAvailability {
         case available
         case remoteSSH
+        case sandboxed
         case noWindowServer
 
         var errorMessage: String {
@@ -15,6 +16,8 @@ enum Session {
                 return ""
             case .remoteSSH:
                 return "error: this is an ssh session (SSH_CONNECTION/SSH_TTY is set). The panel would open on the remote Mac's display, not yours. Run the same command in a terminal on that Mac's desktop, pipe the value in with --stdin, or pass --force-gui if you really are at its console."
+            case .sandboxed:
+                return "error: the agent's sandbox blocks the popup. Rerun this exact command outside the sandbox (ask the user to approve it)."
             case .noWindowServer:
                 return "error: no GUI session. ez-secret must run from a terminal on the Mac's desktop (not launchd, CI, or ssh as a user who is not logged in). Use --stdin to pipe a value in instead."
             }
@@ -25,8 +28,10 @@ enum Session {
         let env = ProcessInfo.processInfo.environment
         let overSSH = env["SSH_CONNECTION"] != nil || env["SSH_TTY"] != nil || env["SSH_CLIENT"] != nil
         if overSSH && !forceGUI { return .remoteSSH }
-        guard let dict = CGSessionCopyCurrentDictionary() as? [String: Any] else { return .noWindowServer }
-        if let onConsole = dict[kCGSessionOnConsoleKey as String] as? Bool, !onConsole { return .noWindowServer }
+        let sandboxed = ["CODEX_SANDBOX", "SANDBOX_RUNTIME", "CLAUDE_CODE_SANDBOX"].contains { !(env[$0] ?? "").isEmpty }
+        let unavailable: GUIAvailability = sandboxed ? .sandboxed : .noWindowServer
+        guard let dict = CGSessionCopyCurrentDictionary() as? [String: Any] else { return unavailable }
+        if let onConsole = dict[kCGSessionOnConsoleKey as String] as? Bool, !onConsole { return unavailable }
         return .available
     }
 

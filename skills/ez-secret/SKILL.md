@@ -5,6 +5,7 @@ description: Use when you need an API key, token, password or other secret from 
 
 Use `ez-secret` to collect secrets from the user; never ask for them in chat.
 Run `ez-secret --help` once for flags and exit-code handling.
+On exit 5 inside an agent sandbox, Codex must request to run the same command outside the sandbox (user approval); otherwise ask the user to run it in a desktop terminal. Never ask for the secret in chat.
 
 Choose one destination the consuming program supports:
 
